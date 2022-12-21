@@ -3,9 +3,10 @@ Project for automated devices for home
 
 This intend to integrate several devices such as lamps, temperature, humidity sensors, dehumidifiers, etc. into one system for monitor an control automatically.
 
-First step is to integrate the interface through Telegram. the folder /telegram contains a telegram message sender.
+Devices supported:
 
-Also, is included a module Shelly to interact with the Shelly devices, model S.
+- Telegram (/telegram) provides a message sender. Message to send and recipient is given by the topic subscribed.
+- Shelly devices (/shelly) for power control. It provided to published topics information about the status of the device, as well as receives commands through MQTT topics.
 
 All modules connesct to an MQTT Broker to exchange messages. Events are triggered by update to the topics subscribed or published.
 
