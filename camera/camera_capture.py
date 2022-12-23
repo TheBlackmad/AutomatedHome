@@ -62,94 +62,95 @@ nSamples = 0
 tAverage = 0.0
 tMax = 0.0
 
-# Preparing the logging and metrics
-logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
-logging.info("Program started")
-metrics = timeMetrics.timeMetrics()
+if __name__ == "__main__":
+    # Preparing the logging and metrics
+    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.info("Program started")
+    metrics = timeMetrics.timeMetrics()
 
-# Collecting data from the Bank
-try:
-    db = config(filename='camera.ini', section='cam_addr')
-except Exception as e:
-    print(f"Error reading the source: {str(e)}")
-    exit(0)
-path_video = db["camera_address"]
-print(f"Reading video stream from {path_video}")
-
-# Create area of shared memory
-shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
-
-# Create the pipe communication
-if shm.getPipeFlag():
+    # Collecting data from the Bank
     try:
-        logging.info("Open the communication pipe")
-        if os.path.exists(pipe_name):
-            os.remove(pipe_name)
-        os.mkfifo(pipe_name)
-        pipeout = open(pipe_name, "wb")
+        db = config(filename='camera.ini', section='cam_addr')
     except Exception as e:
-        logging.error("Error Exception: " + str(e))
+        print(f"Error reading the source: {str(e)}")
+        exit(0)
+    path_video = db["camera_address"]
+    print(f"Reading video stream from {path_video}")
 
-# connect to the soure of video
-try:
-    logging.info("Opening the video source")
-    input_container = av.open(path_video)
-    input_stream = input_container.streams.get(video=0)[0]
-except Exception as e:
-    logging.error("EXCEPTION: " + str(e))
+    # Create area of shared memory
+    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
 
-# Wait until run flag is activated
-while not shm.getRunFlag():
-    logging.info("Waiting ......")
-    pass
-
-# retrieve each frame
-logging.info("Now capturing frames . . .")
-for frame in input_container.decode(input_stream):
-
-    metrics.newCycle()
-
-    if shm.getCaptureFlag() and shm.getRunFlag():
+    # Create the pipe communication
+    if shm.getPipeFlag():
         try:
-            img = frame.to_ndarray(format=frame.format.name, width=frame.format.width, height=frame.format.height)
-
-            # make available to the external world
-            shm.setImage(img, frame.format.name)
-
-            # send to the pipe
-            if shm.getPipeFlag():
-                if pipeout is None:
-                    try:
-                        logging.info("Open the communication pipe")
-                        if os.path.exists(pipe_name):
-                            os.remove(pipe_name)
-                        os.mkfifo(pipe_name)
-                        pipeout = open(pipe_name, "wb")
-                    except Exception as e:
-                        logging.error("Error Exception: " + str(e))
-                pickle_img = pickle.dumps(img)
-                logging.info(f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
-                pipeout.write(pickle_img)
-
+            logging.info("Open the communication pipe")
+            if os.path.exists(pipe_name):
+                os.remove(pipe_name)
+            os.mkfifo(pipe_name)
+            pipeout = open(pipe_name, "wb")
         except Exception as e:
-            logging.error("ERROR EXCEPCIÓN: " + str(e))
+            logging.error("Error Exception: " + str(e))
 
-    # need to quit?
-    if shm.getExitFlag():
-        break
+    # connect to the soure of video
+    try:
+        logging.info("Opening the video source")
+        input_container = av.open(path_video)
+        input_stream = input_container.streams.get(video=0)[0]
+    except Exception as e:
+        logging.error("EXCEPTION: " + str(e))
 
-    # Calculate metrics
-    print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+    # Wait until run flag is activated
+    while not shm.getRunFlag():
+        logging.info("Waiting ......")
+        pass
 
-    time.sleep(1/25)
+    # retrieve each frame
+    logging.info("Now capturing frames . . .")
+    for frame in input_container.decode(input_stream):
 
-logging.info("Exiting capture program")
-if shm.getPipeFlag():
-    os.close(pipeout)
-    os.remove(pipe_name)
+        metrics.newCycle()
 
-# Disconnecting from the Shared Memory
-shm.close()
-input_container.close()
+        if shm.getCaptureFlag() and shm.getRunFlag():
+            try:
+                img = frame.to_ndarray(format=frame.format.name, width=frame.format.width, height=frame.format.height)
+
+                # make available to the external world
+                shm.setImage(img, frame.format.name)
+
+                # send to the pipe
+                if shm.getPipeFlag():
+                    if pipeout is None:
+                        try:
+                            logging.info("Open the communication pipe")
+                            if os.path.exists(pipe_name):
+                                os.remove(pipe_name)
+                            os.mkfifo(pipe_name)
+                            pipeout = open(pipe_name, "wb")
+                        except Exception as e:
+                            logging.error("Error Exception: " + str(e))
+                    pickle_img = pickle.dumps(img)
+                    logging.info(f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
+                    pipeout.write(pickle_img)
+
+            except Exception as e:
+                logging.error("ERROR EXCEPCIÓN: " + str(e))
+
+        # need to quit?
+        if shm.getExitFlag():
+            break
+
+        # Calculate metrics
+        print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+
+        time.sleep(1/25)
+
+    logging.info("Exiting capture program")
+    if shm.getPipeFlag():
+        os.close(pipeout)
+        os.remove(pipe_name)
+
+    # Disconnecting from the Shared Memory
+    shm.close()
+    input_container.close()
 
 

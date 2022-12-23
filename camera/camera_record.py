@@ -25,24 +25,7 @@ import signal
 import shmcam
 import timeMetrics
 
-SIGNALNR = 63
-
-nSamples = 0
-tAverage = 0.0
-tMax = 0.0
-writtenFrames = 0
-timeRecordStart = 0.0
-fps = 8
-input_stream = None
-
-record = False
-recording = False
-out = None
-framesRecordQueue = None
-framesReadQueue = None
-image = None
-shm = None      # shared memory area
-fsm = None      # Finite state machine
+from fysom import Fysom
 
 
 # this function decides whether writing a video is required or not
@@ -196,15 +179,6 @@ def handler(sig_num, curr_stack_frame):
 #    logging.info("Signal : '{}' Received. Handler Executed @ {}".format(signal.strsignal(sig_num), datetime.now()))
     pass
 
-
-#################################################
-#################################################
-#################################################
-
-
-
-from fysom import Fysom
-
 def createEvents():
     '''
         This routine creates the event of the state machine and changes the state as required.
@@ -330,82 +304,102 @@ def closefile(e):
     out.release()
     print("Recording finished")
 
-fsm = Fysom( {
-    'initial': 'init',
-    'final': 'return',
-    'events': [
-        {'name': 'run', 'src': [ 'init', 'running' ], 'dst': 'running'},
-        {'name': 'norun', 'src': [ 'init', 'running' ], 'dst': 'init'},
-        {'name': 'exit', 'src': [ 'init', 'running' ], 'dst': 'return'},
-        {'name': 'record', 'src': [ 'running', 'recordingready' ], 'dst': 'recordingready'},
-        {'name': 'saverec', 'src': [ 'recordingready', 'recording' ], 'dst': 'recording'},
-        {'name': 'saverecend', 'src': 'recording', 'dst': 'recordingready'},
-        {'name': 'norecord', 'src': 'recording', 'dst': 'running'},
-    ],
-    'callbacks': {
-        'onenterrecording': createfile,
-        'onreenterrecording': queueframe,
-        'onleaverecording': closefile
-    }
-})
 
-print(f"Current state: {fsm.current}")
+if __name__ == "__main__":
+    SIGNALNR = 63
 
-# Preparing the logging
-logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
-logging.info("Program started")
-metrics = timeMetrics.timeMetrics()
+    nSamples = 0
+    tAverage = 0.0
+    tMax = 0.0
+    writtenFrames = 0
+    timeRecordStart = 0.0
+    fps = 8
+    input_stream = None
 
-# Create area of shared memory
-shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
+    record = False
+    recording = False
+    out = None
+    framesRecordQueue = None
+    framesReadQueue = None
+    image = None
+    shm = None      # shared memory area
+    fsm = None      # Finite state machine
 
-# Creating queue for the processing of frames
-framesRecordQueue = queue.Queue(1000)
-framesReadQueue = queue.Queue(1000)
+    fsm = Fysom( {
+        'initial': 'init',
+        'final': 'return',
+        'events': [
+            {'name': 'run', 'src': [ 'init', 'running' ], 'dst': 'running'},
+            {'name': 'norun', 'src': [ 'init', 'running' ], 'dst': 'init'},
+            {'name': 'exit', 'src': [ 'init', 'running' ], 'dst': 'return'},
+            {'name': 'record', 'src': [ 'running', 'recordingready' ], 'dst': 'recordingready'},
+            {'name': 'saverec', 'src': [ 'recordingready', 'recording' ], 'dst': 'recording'},
+            {'name': 'saverecend', 'src': 'recording', 'dst': 'recordingready'},
+            {'name': 'norecord', 'src': 'recording', 'dst': 'running'},
+        ],
+        'callbacks': {
+            'onenterrecording': createfile,
+            'onreenterrecording': queueframe,
+            'onleaverecording': closefile
+        }
+    })
 
-signal.signal(SIGNALNR, handler)
+    print(f"Current state: {fsm.current}")
 
-# Create thread for reading frames
-logging.info("Starting thread reading frames")
-threadRecord = Thread(target=readFrames, args=())
-threadRecord.start()
+    # Preparing the logging
+    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.info("Program started")
+    metrics = timeMetrics.timeMetrics()
 
-# Create thread for recording
-logging.info("Starting thread writing video")
-threadRecord = Thread(target=writeVideo, args=())
-threadRecord.start()
+    # Create area of shared memory
+    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
 
-time0 = time.time()
-nextRecordTime = 0
+    # Creating queue for the processing of frames
+    framesRecordQueue = queue.Queue(1000)
+    framesReadQueue = queue.Queue(1000)
 
-while True:
-    metrics.newCycle()
-    nextRecordTime = time.time() + (1/fps)
+    signal.signal(SIGNALNR, handler)
 
-    try:
-        # execute every event
-        events = createEvents()
-        for e in events:
-            if fsm.can(e[1]):
-                exe ='fsm.' + e[1] + '()'
-                eval(exe)
+    # Create thread for reading frames
+    logging.info("Starting thread reading frames")
+    threadRecord = Thread(target=readFrames, args=())
+    threadRecord.start()
 
-        for thread in threading.enumerate():
-            signal.pthread_kill(thread.ident, SIGNALNR)
+    # Create thread for recording
+    logging.info("Starting thread writing video")
+    threadRecord = Thread(target=writeVideo, args=())
+    threadRecord.start()
 
-        sleeptime = nextRecordTime - time.time()
-        if sleeptime < 0.0:
-            sleeptime = 0.0
-        time.sleep(sleeptime)
-    #    print(f"Start Time: {start}\t Next record time: {nextRecordTime}\t Sleep Time: {sleeptime}")
+    time0 = time.time()
+    nextRecordTime = 0
 
-    except Exception as e:
-        print("EXCEPTION: ", str(e))
+    while True:
+        metrics.newCycle()
+        nextRecordTime = time.time() + (1/fps)
 
-    # Calculate metrics
-    print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+        try:
+            # execute every event
+            events = createEvents()
+            for e in events:
+                if fsm.can(e[1]):
+                    exe ='fsm.' + e[1] + '()'
+                    eval(exe)
 
-logging.info("Exiting view program")
-shm._shm.close()
-shm._shm.unlink()
-exit(0)
+            for thread in threading.enumerate():
+                signal.pthread_kill(thread.ident, SIGNALNR)
+
+            sleeptime = nextRecordTime - time.time()
+            if sleeptime < 0.0:
+                sleeptime = 0.0
+            time.sleep(sleeptime)
+        #    print(f"Start Time: {start}\t Next record time: {nextRecordTime}\t Sleep Time: {sleeptime}")
+
+        except Exception as e:
+            print("EXCEPTION: ", str(e))
+
+        # Calculate metrics
+        print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+
+    logging.info("Exiting view program")
+    shm._shm.close()
+    shm._shm.unlink()

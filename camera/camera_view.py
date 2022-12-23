@@ -25,57 +25,58 @@ tMax = 0.0
 frame = None
 boxes = []
 
-# Preparing the logging and metrics
-logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
-logging.info("Program started")
-metrics = timeMetrics.timeMetrics()
+if __name__ == "__main__":
+    # Preparing the logging and metrics
+    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.info("Program started")
+    metrics = timeMetrics.timeMetrics()
 
-# Create area of shared memory
-shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
+    # Create area of shared memory
+    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
 
-# Wait until run flag is activated
-while not shm.getRunFlag():
-    logging.info("Waiting ......")
-    pass
+    # Wait until run flag is activated
+    while not shm.getRunFlag():
+        logging.info("Waiting ......")
+        pass
 
-while True:
+    while True:
 
-    metrics.newCycle()
+        metrics.newCycle()
 
-    if shm.getRunFlag() and shm.getViewFlag():
-        try:
-            # Display the video
-            frame = shm.getImage()
+        if shm.getRunFlag() and shm.getViewFlag():
+            try:
+                # Display the video
+                frame = shm.getImage()
 
-            # if detector is activated, modify image with detections
-            if shm.getYoloFlag():
+                # if detector is activated, modify image with detections
+                if shm.getYoloFlag():
 
-                boxes = shm.getBoxes()
+                    boxes = shm.getBoxes()
 
-                for box in boxes:
-                    #font = cv2.FONT_HERSHEY_PLAIN
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    x, y, w, h = box[0]
-                    label = box[1]
-                    color = box[2]
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                    cv2.putText(frame, label, (x-10, y-10), font, 1 / 2, color, 2)
+                    for box in boxes:
+                        #font = cv2.FONT_HERSHEY_PLAIN
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        x, y, w, h = box[0]
+                        label = box[1]
+                        color = box[2]
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                        cv2.putText(frame, label, (x-10, y-10), font, 1 / 2, color, 2)
 
 
-            cv2.imshow("Video", frame)
+                cv2.imshow("Video", frame)
 
-        except Exception as e:
-            logging.error("Error Getting Image, Boxes or printing boxes: " + str(e))
-            pass
+            except Exception as e:
+                logging.error("Error Getting Image, Boxes or printing boxes: " + str(e))
+                pass
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        if shm.getExitFlag():
             break
 
-    if shm.getExitFlag():
-        break
+        # Calculate metrics
+        print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
 
-    # Calculate metrics
-    print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
-
-logging.info("Exiting view program")
-shm.close()
+    logging.info("Exiting view program")
+    shm.close()

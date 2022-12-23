@@ -24,51 +24,52 @@ nSamples = 0
 tAverage = 0.0
 tMax = 0.0
 
-# Preparing the logging
-logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
-logging.info("Program started")
-metrics = timeMetrics.timeMetrics()
+if __name__ == "__main__":
+    # Preparing the logging
+    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.info("Program started")
+    metrics = timeMetrics.timeMetrics()
 
-# Create area of shared memory
-shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
+    # Create area of shared memory
+    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
 
-# Initialize the Yolo detector
-if shm.getYoloFlag():
-    logging.info("Initializing the YOLO Detector . . .")
-    try:
-        # Initialize the Yolo detector
-        detector = yolo.YOLO_Detector()
-    except Exception as e:
-        logging.error("PUTA EXCEPTION: " + str(e))
-
-# Wait until run flag is activated
-while not shm.getRunFlag():
-    logging.info("Waiting ......")
-    pass
-
-while True:
-
-    metrics.newCycle()
-
-    if shm.getYoloFlag() and shm.getRunFlag():
+    # Initialize the Yolo detector
+    if shm.getYoloFlag():
+        logging.info("Initializing the YOLO Detector . . .")
         try:
-            # Find the objects
-            frame = shm.getImage()
-
-            boxes = detector.detectObjects(frame)
-#            boxes.append([ [500, 500, 100, 100], "person", 5])
-#            boxes.append([ [250, 250,  50,  50], "person", 3])
-
-            shm.setBoxes(boxes)
-
+            # Initialize the Yolo detector
+            detector = yolo.YOLO_Detector()
         except Exception as e:
-            logging.error(str(e))
+            logging.error("PUTA EXCEPTION: " + str(e))
 
-    if shm.getExitFlag():
-        break
+    # Wait until run flag is activated
+    while not shm.getRunFlag():
+        logging.info("Waiting ......")
+        pass
 
-    # Calculate metrics
-    print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+    while True:
 
-logging.info("Exiting view program")
-shm.close()
+        metrics.newCycle()
+
+        if shm.getYoloFlag() and shm.getRunFlag():
+            try:
+                # Find the objects
+                frame = shm.getImage()
+
+                boxes = detector.detectObjects(frame)
+    #            boxes.append([ [500, 500, 100, 100], "person", 5])
+    #            boxes.append([ [250, 250,  50,  50], "person", 3])
+
+                shm.setBoxes(boxes)
+
+            except Exception as e:
+                logging.error(str(e))
+
+        if shm.getExitFlag():
+            break
+
+        # Calculate metrics
+        print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+
+    logging.info("Exiting view program")
+    shm.close()

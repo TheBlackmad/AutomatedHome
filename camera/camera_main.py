@@ -47,47 +47,48 @@ def handler_SIGINT(signum, frame):
         logging.error(f"EXCEPTION AT EXITING: {str(e)}")
     exit(0)
 
-# Preparing the logging and metrics
-logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
-logging.info("Program started")
-metrics = timeMetrics.timeMetrics()
+if __name__ == "__main__":
+    # Preparing the logging and metrics
+    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.info("Program started")
+    metrics = timeMetrics.timeMetrics()
 
-# Create area of shared memory
-shm = shmcam.SHMCAM(create=True, name="CAMERA_SHMEM",maxImageWidth=1280, maxImageHeight=720)
+    # Create area of shared memory
+    shm = shmcam.SHMCAM(create=True, name="CAMERA_SHMEM",maxImageWidth=1280, maxImageHeight=720)
 
-# Wait for others to join if needed
-# then initiate the running
-time.sleep(1)
-# Set the flag to capture video
-shm.setCaptureFlag(True)
-# Set the flag to allow view of the video in a screen
-shm.setViewFlag(True)
-# Set the flag to allow object detection
-shm.setYoloFlag(True)
-# Set the flag to allow object detection
-shm.setRecordFlag(True)
-# Set the marker of objects on the image
-shm.setMarkFlag(True)
-# Set the flag running
-shm.setRunFlag(True)
-# Set the flag exit
-shm.setExitFlag(False)
-# Set the pipe flag
-shm.setPipeFlag(False)
+    # Wait for others to join if needed
+    # then initiate the running
+    time.sleep(1)
+    # Set the flag to capture video
+    shm.setCaptureFlag(True)
+    # Set the flag to allow view of the video in a screen
+    shm.setViewFlag(True)
+    # Set the flag to allow object detection
+    shm.setYoloFlag(True)
+    # Set the flag to allow object detection
+    shm.setRecordFlag(True)
+    # Set the marker of objects on the image
+    shm.setMarkFlag(True)
+    # Set the flag running
+    shm.setRunFlag(True)
+    # Set the flag exit
+    shm.setExitFlag(False)
+    # Set the pipe flag
+    shm.setPipeFlag(False)
 
-# Callback signal for SIGINT
-signal.signal(signal.SIGINT, handler_SIGINT)
+    # Callback signal for SIGINT
+    signal.signal(signal.SIGINT, handler_SIGINT)
 
-while True:
-    try:
-        metrics.newCycle()
+    while True:
+        try:
+            metrics.newCycle()
 
-        # Do some staff for the main program
-        # . . .
+            # Do some staff for the main program
+            # . . .
 
-        # Calculate metrics
-        print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+            # Calculate metrics
+            print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
 
-    except Exception as e:
-        logging.error(str(e))
-        pass
+        except Exception as e:
+            logging.error(str(e))
+            pass
