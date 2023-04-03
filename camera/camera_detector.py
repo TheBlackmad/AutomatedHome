@@ -41,12 +41,14 @@ if __name__ == "__main__":
             detector = yolo.YOLO_Detector()
         except Exception as e:
             logging.error("PUTA EXCEPTION: " + str(e))
+            exit(-1)
 
     # Wait until run flag is activated
     while not shm.getRunFlag():
         logging.info("Waiting ......")
         pass
 
+    frame = None
     while True:
 
         metrics.newCycle()
@@ -56,9 +58,8 @@ if __name__ == "__main__":
                 # Find the objects
                 frame = shm.getImage()
 
-                boxes = detector.detectObjects(frame)
-    #            boxes.append([ [500, 500, 100, 100], "person", 5])
-    #            boxes.append([ [250, 250,  50,  50], "person", 3])
+                #boxes = detector.detectObjects(frame)
+                boxes = detector.detect(frame)
 
                 shm.setBoxes(boxes)
 
