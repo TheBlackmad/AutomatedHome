@@ -13,15 +13,16 @@
 # limitations under the License.
 
 import cv2
+import torch
 import imutils
 import time
 import numpy as np
 
-yolov3_weights = "./yolo-coco/ultralytics-yolov3-d1a1ea2/weights/weights/yolov3-tiny.weights"
-yolov3_config = "./yolo-coco/ultralytics-yolov3-d1a1ea2/cfg/yolov3-tiny.cfg"
-#yolov3_weights = "./yolo-coco/ultralytics-yolov3-d1a1ea2/weights/weights/yolov3.weights"
-#yolov3_config = "./yolo-coco/ultralytics-yolov3-d1a1ea2/cfg/yolov3.cfg"
-yolov3_coconames = "./yolo-coco/ultralytics-yolov3-d1a1ea2/data/coco.names"
+#yolov3_weights = "./yolo-coco/ultralytics-yolov3-d1a1ea2/weights/weights/yolov3-tiny.weights"
+#yolov3_config = "./yolo-coco/ultralytics-yolov3-d1a1ea2/cfg/yolov3-tiny.cfg"
+##yolov3_weights = "./yolo-coco/ultralytics-yolov3-d1a1ea2/weights/weights/yolov3.weights"
+##yolov3_config = "./yolo-coco/ultralytics-yolov3-d1a1ea2/cfg/yolov3.cfg"
+#yolov3_coconames = "./yolo-coco/ultralytics-yolov3-d1a1ea2/data/coco.names"
 
 
 class YOLO_Detector:
@@ -33,37 +34,23 @@ class YOLO_Detector:
         https://www.codespeedy.com/yolo-object-detection-from-image-with-opencv-and-python/
     '''
 
-    def __init__(self):
+    def __init__(self, path="ultralytics/yolov5", model="yolov5s"):
         '''
-            This routine creates the neural network for using as object detector.
+             This routine creates the neural network for using as object detector.
 
-            Args:
-                None
+             Args:
+                 None
 
-            Returns:
-                A class Detector
+             Returns:
+                 A class Detector
 
-            Raises:
-                None
+             Raises:
+                 None
         '''
-        self.net = None
-        self.classes = []
-        self.layer_names = None
-        self.output_layers = None
-        self.numPersons = 0
 
-        # Load Yolo
-        print(f"YOLO Weights: {yolov3_weights}\nYOLO Config: {yolov3_config}\nYOLO Coco.names: {yolov3_coconames}")
-        print("(YOLO_Detector) Loading YOLO . . .")
-        self.net = cv2.dnn.readNet(yolov3_weights, yolov3_config)
-        # save all the names in file o the list classes
-        self.classes = []
-        with open(yolov3_coconames, "r") as f:
-            self.classes = [line.strip() for line in f.readlines()]
-        # get layers of the network
-        self.layer_names = self.net.getLayerNames()
-        # Determine the output layer names from the YOLO model
-        self.output_layers = [self.layer_names[i - 1] for i in self.net.getUnconnectedOutLayers()]
+        # Pytorch model
+        self.model = torch.hub.load(path, model)
+
         print("(YOLO_Detector) YOLO loaded")
 
     def getPersons(self):
@@ -82,79 +69,25 @@ class YOLO_Detector:
         '''
         return self.numPersons
 
-    def detectObjects(self, img):
-        '''
-            This routine identifies persons in the image given as argument
+    def detect(self, img, confidence=0.65):
+        ret = []
+        color = 2128
+        self.numPersons = 0
 
-            Args:
-                img (cv2 image): image where to identify persons
-
-            Returns:
-                list of boxes where the persons where identified
-
-            Raises:
-                None
-        '''
-        try:
-            height, width, channels = img.shape
-
-            # USing blob function of opencv to preprocess image
-#            blob = cv2.dnn.blobFromImage(img, 1 / 255.0, (416, 416),  swapRB=True, crop=False)
-            blob = cv2.dnn.blobFromImage(img, 1 / 255.0, (224, 224), swapRB=True, crop=False)
-
-            # Detecting objects
-            self.net.setInput(blob)
-            outs = self.net.forward(self.output_layers)
-            # Showing informations on the screen
-            class_ids = []
-            confidences = []
-            boxes = []
-            for out in outs:
-                for detection in out:
-                    scores = detection[5:]
-                    class_id = np.argmax(scores)
-                    confidence = scores[class_id]
-                    if confidence > 0.5:
-                        # Object detected
-                        center_x = int(detection[0] * width)
-                        center_y = int(detection[1] * height)
-                        w = int(detection[2] * width)
-                        h = int(detection[3] * height)
-
-                        # Rectangle coordinates
-                        x = int(center_x - w / 2)
-                        y = int(center_y - h / 2)
-
-                        boxes.append([x, y, w, h])
-                        confidences.append(float(confidence))
-                        class_ids.append(class_id)
-
-            # We use NMS function in opencv to perform Non-maximum Suppression
-            # we give it score threshold and nms threshold as arguments.
-            indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-            #        font = cv2.FONT_HERSHEY_PLAIN
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            colors = np.random.uniform(0, 255, size=(len(self.classes), 3))
-            self.numPersons = 0
-            ret = []
-            for i in range(len(boxes)):
-                if i in indexes:
-                    x, y, w, h = boxes[i]
-                    if self.classes[class_ids[i]] == "person":
-                        self.numPersons += 1
-
-                    label = str(self.classes[class_ids[i]])
-#                    color = colors[class_ids[i]]
-#                    color = (64, 64, 255)
-                    color = 2128
-#                    cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-#                    cv2.putText(img, label, (x, y + 30), font, 1 / 2, color, 2)
-
-                    # what if we return the boxes instead of the frames???
-                    print("***** ", [[x, y, w, h], label, color])
-                    ret.append([[x, y, w, h], label, color])
-
-        except AttributeError as ae:
-            print(ae)
+        results = self.model(img)
+        p = results.pandas().xyxy[0]
+        for i in range(len(p)):
+            if p['confidence'][i] > confidence:
+                if p['name'][i] == 'person':
+                    ret.append([
+                        [round(p['xmin'][i]),
+                         round(p['ymin'][i]),
+                         round(p['xmax'][i]-p['xmin'][i]),
+                         round(p['ymax'][i]-p['ymin'][i])],
+                        p['name'][i],
+                        round(p['confidence'][i], 2),
+                        color
+                    ])
+                    self.numPersons += 1
 
         return ret
