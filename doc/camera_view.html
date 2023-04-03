@@ -16,17 +16,8 @@
     <nav class="pdoc">
         <label id="navtoggle" for="togglestate" class="pdoc-button"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke-linecap='round' stroke="currentColor" stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg></label>
         <input id="togglestate" type="checkbox" aria-hidden="true" tabindex="-1">
-        <div>            <a class="pdoc-button module-list-button" href="index.html">
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-in-left" viewBox="0 0 16 16">
-  <path fill-rule="evenodd" d="M10 3.5a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 1 1 0v2A1.5 1.5 0 0 1 9.5 14h-8A1.5 1.5 0 0 1 0 12.5v-9A1.5 1.5 0 0 1 1.5 2h8A1.5 1.5 0 0 1 11 3.5v2a.5.5 0 0 1-1 0v-2z"/>
-  <path fill-rule="evenodd" d="M4.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H14.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/>
-</svg>                &nbsp;
-                Module Index
-            </a>
+        <div>
 
-
-            <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
-                   pattern=".+" required>
 
 
 
@@ -113,213 +104,33 @@ camera_view    </h1>
 </span><span id="L-58"><a href="#L-58"><span class="linenos">58</span></a>                        <span class="n">font</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">FONT_HERSHEY_SIMPLEX</span>
 </span><span id="L-59"><a href="#L-59"><span class="linenos">59</span></a>                        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">box</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 </span><span id="L-60"><a href="#L-60"><span class="linenos">60</span></a>                        <span class="n">label</span> <span class="o">=</span> <span class="n">box</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-</span><span id="L-61"><a href="#L-61"><span class="linenos">61</span></a>                        <span class="n">color</span> <span class="o">=</span> <span class="n">box</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-</span><span id="L-62"><a href="#L-62"><span class="linenos">62</span></a>                        <span class="n">cv2</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">w</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">h</span><span class="p">),</span> <span class="n">color</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-</span><span id="L-63"><a href="#L-63"><span class="linenos">63</span></a>                        <span class="n">cv2</span><span class="o">.</span><span class="n">putText</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">10</span><span class="p">),</span> <span class="n">font</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-</span><span id="L-64"><a href="#L-64"><span class="linenos">64</span></a>
+</span><span id="L-61"><a href="#L-61"><span class="linenos">61</span></a>                        <span class="n">confidence</span> <span class="o">=</span> <span class="n">box</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+</span><span id="L-62"><a href="#L-62"><span class="linenos">62</span></a>                        <span class="n">color</span> <span class="o">=</span> <span class="n">box</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+</span><span id="L-63"><a href="#L-63"><span class="linenos">63</span></a>                        <span class="n">cv2</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">w</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">h</span><span class="p">),</span> <span class="n">color</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</span><span id="L-64"><a href="#L-64"><span class="linenos">64</span></a>                        <span class="n">cv2</span><span class="o">.</span><span class="n">putText</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">label</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">confidence</span><span class="o">*</span><span class="mi">100</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">10</span><span class="p">),</span> <span class="n">font</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
 </span><span id="L-65"><a href="#L-65"><span class="linenos">65</span></a>
-</span><span id="L-66"><a href="#L-66"><span class="linenos">66</span></a>                <span class="n">cv2</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="s2">&quot;Video&quot;</span><span class="p">,</span> <span class="n">frame</span><span class="p">)</span>
-</span><span id="L-67"><a href="#L-67"><span class="linenos">67</span></a>
-</span><span id="L-68"><a href="#L-68"><span class="linenos">68</span></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-</span><span id="L-69"><a href="#L-69"><span class="linenos">69</span></a>                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error Getting Image, Boxes or printing boxes: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
-</span><span id="L-70"><a href="#L-70"><span class="linenos">70</span></a>                <span class="k">pass</span>
-</span><span id="L-71"><a href="#L-71"><span class="linenos">71</span></a>
-</span><span id="L-72"><a href="#L-72"><span class="linenos">72</span></a>            <span class="k">if</span> <span class="n">cv2</span><span class="o">.</span><span class="n">waitKey</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xFF</span> <span class="o">==</span> <span class="nb">ord</span><span class="p">(</span><span class="s1">&#39;q&#39;</span><span class="p">):</span>
-</span><span id="L-73"><a href="#L-73"><span class="linenos">73</span></a>                <span class="k">break</span>
-</span><span id="L-74"><a href="#L-74"><span class="linenos">74</span></a>
-</span><span id="L-75"><a href="#L-75"><span class="linenos">75</span></a>        <span class="k">if</span> <span class="n">shm</span><span class="o">.</span><span class="n">getExitFlag</span><span class="p">():</span>
-</span><span id="L-76"><a href="#L-76"><span class="linenos">76</span></a>            <span class="k">break</span>
-</span><span id="L-77"><a href="#L-77"><span class="linenos">77</span></a>
-</span><span id="L-78"><a href="#L-78"><span class="linenos">78</span></a>        <span class="c1"># Calculate metrics</span>
-</span><span id="L-79"><a href="#L-79"><span class="linenos">79</span></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\r</span><span class="si">{</span><span class="n">metrics</span><span class="o">.</span><span class="n">endCycle</span><span class="p">()</span><span class="o">.</span><span class="n">toString</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="L-80"><a href="#L-80"><span class="linenos">80</span></a>
-</span><span id="L-81"><a href="#L-81"><span class="linenos">81</span></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Exiting view program&quot;</span><span class="p">)</span>
-</span><span id="L-82"><a href="#L-82"><span class="linenos">82</span></a>    <span class="n">shm</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span><span id="L-66"><a href="#L-66"><span class="linenos">66</span></a>
+</span><span id="L-67"><a href="#L-67"><span class="linenos">67</span></a>                <span class="n">cv2</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="s2">&quot;Video&quot;</span><span class="p">,</span> <span class="n">frame</span><span class="p">)</span>
+</span><span id="L-68"><a href="#L-68"><span class="linenos">68</span></a>
+</span><span id="L-69"><a href="#L-69"><span class="linenos">69</span></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="L-70"><a href="#L-70"><span class="linenos">70</span></a>                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error Getting Image, Boxes or printing boxes: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+</span><span id="L-71"><a href="#L-71"><span class="linenos">71</span></a>                <span class="k">pass</span>
+</span><span id="L-72"><a href="#L-72"><span class="linenos">72</span></a>
+</span><span id="L-73"><a href="#L-73"><span class="linenos">73</span></a>            <span class="k">if</span> <span class="n">cv2</span><span class="o">.</span><span class="n">waitKey</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xFF</span> <span class="o">==</span> <span class="nb">ord</span><span class="p">(</span><span class="s1">&#39;q&#39;</span><span class="p">):</span>
+</span><span id="L-74"><a href="#L-74"><span class="linenos">74</span></a>                <span class="k">break</span>
+</span><span id="L-75"><a href="#L-75"><span class="linenos">75</span></a>
+</span><span id="L-76"><a href="#L-76"><span class="linenos">76</span></a>        <span class="k">if</span> <span class="n">shm</span><span class="o">.</span><span class="n">getExitFlag</span><span class="p">():</span>
+</span><span id="L-77"><a href="#L-77"><span class="linenos">77</span></a>            <span class="k">break</span>
+</span><span id="L-78"><a href="#L-78"><span class="linenos">78</span></a>
+</span><span id="L-79"><a href="#L-79"><span class="linenos">79</span></a>        <span class="c1"># Calculate metrics</span>
+</span><span id="L-80"><a href="#L-80"><span class="linenos">80</span></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\r</span><span class="si">{</span><span class="n">metrics</span><span class="o">.</span><span class="n">endCycle</span><span class="p">()</span><span class="o">.</span><span class="n">toString</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="L-81"><a href="#L-81"><span class="linenos">81</span></a>
+</span><span id="L-82"><a href="#L-82"><span class="linenos">82</span></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Exiting view program&quot;</span><span class="p">)</span>
+</span><span id="L-83"><a href="#L-83"><span class="linenos">83</span></a>    <span class="n">shm</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </span></pre></div>
 
 
             </section>
     </main>
-<script>
-    function escapeHTML(html) {
-        return document.createElement('div').appendChild(document.createTextNode(html)).parentNode.innerHTML;
-    }
-
-    const originalContent = document.querySelector("main.pdoc");
-    let currentContent = originalContent;
-
-    function setContent(innerHTML) {
-        let elem;
-        if (innerHTML) {
-            elem = document.createElement("main");
-            elem.classList.add("pdoc");
-            elem.innerHTML = innerHTML;
-        } else {
-            elem = originalContent;
-        }
-        if (currentContent !== elem) {
-            currentContent.replaceWith(elem);
-            currentContent = elem;
-        }
-    }
-
-    function getSearchTerm() {
-        return (new URL(window.location)).searchParams.get("search");
-    }
-
-    const searchBox = document.querySelector(".pdoc input[type=search]");
-    searchBox.addEventListener("input", function () {
-        let url = new URL(window.location);
-        if (searchBox.value.trim()) {
-            url.hash = "";
-            url.searchParams.set("search", searchBox.value);
-        } else {
-            url.searchParams.delete("search");
-        }
-        history.replaceState("", "", url.toString());
-        onInput();
-    });
-    window.addEventListener("popstate", onInput);
-
-
-    let search, searchErr;
-
-    async function initialize() {
-        try {
-            search = await new Promise((resolve, reject) => {
-                const script = document.createElement("script");
-                script.type = "text/javascript";
-                script.async = true;
-                script.onload = () => resolve(window.pdocSearch);
-                script.onerror = (e) => reject(e);
-                script.src = "search.js";
-                document.getElementsByTagName("head")[0].appendChild(script);
-            });
-        } catch (e) {
-            console.error("Cannot fetch pdoc search index");
-            searchErr = "Cannot fetch search index.";
-        }
-        onInput();
-
-        document.querySelector("nav.pdoc").addEventListener("click", e => {
-            if (e.target.hash) {
-                searchBox.value = "";
-                searchBox.dispatchEvent(new Event("input"));
-            }
-        });
-    }
-
-    function onInput() {
-        setContent((() => {
-            const term = getSearchTerm();
-            if (!term) {
-                return null
-            }
-            if (searchErr) {
-                return `<h3>Error: ${searchErr}</h3>`
-            }
-            if (!search) {
-                return "<h3>Searching...</h3>"
-            }
-
-            window.scrollTo({top: 0, left: 0, behavior: 'auto'});
-
-            const results = search(term);
-
-            let html;
-            if (results.length === 0) {
-                html = `No search results for '${escapeHTML(term)}'.`
-            } else {
-                html = `<h4>${results.length} search result${results.length > 1 ? "s" : ""} for '${escapeHTML(term)}'.</h4>`;
-            }
-            for (let result of results.slice(0, 10)) {
-                let doc = result.doc;
-                let url = `${doc.modulename.replaceAll(".", "/")}.html`;
-                if (doc.qualname) {
-                    url += `#${doc.qualname}`;
-                }
-
-                let heading;
-                switch (result.doc.kind) {
-                    case "function":
-                        if (doc.fullname.endsWith(".__init__")) {
-                            heading = `<span class="name">${doc.fullname.replace(/\.__init__$/, "")}</span>${doc.signature}`;
-                        } else {
-                            heading = `<span class="def">${doc.funcdef}</span> <span class="name">${doc.fullname}</span>${doc.signature}`;
-                        }
-                        break;
-                    case "class":
-                        heading = `<span class="def">class</span> <span class="name">${doc.fullname}</span>`;
-                        if (doc.bases)
-                            heading += `<wbr>(<span class="base">${doc.bases}</span>)`;
-                        heading += `:`;
-                        break;
-                    case "variable":
-                        heading = `<span class="name">${doc.fullname}</span>`;
-                        if (doc.annotation)
-                            heading += `<span class="annotation">${doc.annotation}</span>`;
-                        if (doc.default_value)
-                            heading += `<span class="default_value">${doc.default_value}</span>`;
-                        break;
-                    default:
-                        heading = `<span class="name">${doc.fullname}</span>`;
-                        break;
-                }
-                html += `
-                        <section class="search-result">
-                        <a href="${url}" class="attr ${doc.kind}">${heading}</a>
-                        <div class="docstring">${doc.doc}</div>
-                        </section>
-                    `;
-
-            }
-            return html;
-        })());
-    }
-
-    if (getSearchTerm()) {
-        initialize();
-        searchBox.value = getSearchTerm();
-        onInput();
-    } else {
-        searchBox.addEventListener("focus", initialize, {once: true});
-    }
-
-    searchBox.addEventListener("keydown", e => {
-        if (["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
-            let focused = currentContent.querySelector(".search-result.focused");
-            if (!focused) {
-                currentContent.querySelector(".search-result").classList.add("focused");
-            } else if (
-                e.key === "ArrowDown"
-                && focused.nextElementSibling
-                && focused.nextElementSibling.classList.contains("search-result")
-            ) {
-                focused.classList.remove("focused");
-                focused.nextElementSibling.classList.add("focused");
-                focused.nextElementSibling.scrollIntoView({
-                    behavior: "smooth",
-                    block: "nearest",
-                    inline: "nearest"
-                });
-            } else if (
-                e.key === "ArrowUp"
-                && focused.previousElementSibling
-                && focused.previousElementSibling.classList.contains("search-result")
-            ) {
-                focused.classList.remove("focused");
-                focused.previousElementSibling.classList.add("focused");
-                focused.previousElementSibling.scrollIntoView({
-                    behavior: "smooth",
-                    block: "nearest",
-                    inline: "nearest"
-                });
-            } else if (
-                e.key === "Enter"
-            ) {
-                focused.querySelector("a").click();
-            }
-        }
-    });
-</script></body>
+</body>
 </html>
