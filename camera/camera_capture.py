@@ -20,6 +20,7 @@ import sys
 import shmcam
 import timeMetrics
 from configparser import ConfigParser
+from numpy import asarray
 
 import YOLO_Detector as yolo
 
@@ -55,6 +56,9 @@ def config(filename='camera.ini', section='cam_addr'):
 
     return db
 
+def isCameraIndex(path):
+    assert isinstance(path, str)
+    return path.isdigit()
 
 pipe_name = 'video_pipe'
 pipeout = None
@@ -92,12 +96,19 @@ if __name__ == "__main__":
             logging.error("Error Exception: " + str(e))
 
     # connect to the soure of video
+    cap = None
     try:
-        logging.info("Opening the video source")
-        input_container = av.open(path_video)
-        input_stream = input_container.streams.get(video=0)[0]
+        logging.info(f"Opening the video source {path_video}")
+        if isCameraIndex(path_video):
+            print(f"Opening device index: {path_video}")
+            cap = cv2.VideoCapture(int(path_video))
+        else:
+            print(f"Opening device path: {path_video}")
+            input_container = av.open(path_video)
+            input_stream = input_container.streams.get(video=0)[0]
     except Exception as e:
         logging.error("EXCEPTION: " + str(e))
+        exit(-1)
 
     # Wait until run flag is activated
     while not shm.getRunFlag():
@@ -106,43 +117,94 @@ if __name__ == "__main__":
 
     # retrieve each frame
     logging.info("Now capturing frames . . .")
-    for frame in input_container.decode(input_stream):
 
-        metrics.newCycle()
+    # The reason to use av is to support RTSP services. AV also supports paths
+    # However av, does not support indexes for the cameras, at least in some computers.
+    if not isCameraIndex(path_video):
 
-        if shm.getCaptureFlag() and shm.getRunFlag():
-            try:
-                img = frame.to_ndarray(format=frame.format.name, width=frame.format.width, height=frame.format.height)
+        for frame in input_container.decode(input_stream):
 
-                # make available to the external world
-                shm.setImage(img, frame.format.name)
+            metrics.newCycle()
 
-                # send to the pipe
-                if shm.getPipeFlag():
-                    if pipeout is None:
-                        try:
-                            logging.info("Open the communication pipe")
-                            if os.path.exists(pipe_name):
-                                os.remove(pipe_name)
-                            os.mkfifo(pipe_name)
-                            pipeout = open(pipe_name, "wb")
-                        except Exception as e:
-                            logging.error("Error Exception: " + str(e))
-                    pickle_img = pickle.dumps(img)
-                    logging.info(f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
-                    pipeout.write(pickle_img)
+            if shm.getCaptureFlag() and shm.getRunFlag():
+                try:
 
-            except Exception as e:
-                logging.error("ERROR EXCEPCIÓN: " + str(e))
+                    img = frame.to_ndarray(format=frame.format.name, width=frame.format.width, height=frame.format.height)
 
-        # need to quit?
-        if shm.getExitFlag():
-            break
+                    # make available to the external world
+                    shm.setImage(img, frame.format.name)
 
-        # Calculate metrics
-        print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+                    # send to the pipe
+                    if shm.getPipeFlag():
+                        if pipeout is None:
+                            try:
+                                logging.info("Open the communication pipe")
+                                if os.path.exists(pipe_name):
+                                    os.remove(pipe_name)
+                                os.mkfifo(pipe_name)
+                                pipeout = open(pipe_name, "wb")
+                            except Exception as e:
+                                logging.error("Error Exception: " + str(e))
+                        pickle_img = pickle.dumps(img)
+                        logging.info(f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
+                        pipeout.write(pickle_img)
 
-        time.sleep(1/25)
+                except Exception as e:
+                    logging.error("ERROR EXCEPCIÓN: " + str(e))
+
+            # need to quit?
+            if shm.getExitFlag():
+                break
+
+            # Calculate metrics
+            print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+
+            time.sleep(1/25)
+
+    # this is a camera index, only address supported by OpenCV
+    else:
+
+        while(True):
+
+            metrics.newCycle()
+
+            if shm.getCaptureFlag() and shm.getRunFlag():
+                try:
+
+                    ret, frame = cap.read()
+
+                    # make available to the external world
+                    if ret:
+                        shm.setImage(frame, "rgb24")
+
+                    # send to the pipe
+                    if shm.getPipeFlag():
+                        if pipeout is None:
+                            try:
+                                logging.info("Open the communication pipe")
+                                if os.path.exists(pipe_name):
+                                    os.remove(pipe_name)
+                                os.mkfifo(pipe_name)
+                                pipeout = open(pipe_name, "wb")
+                            except Exception as e:
+                                logging.error("Error Exception: " + str(e))
+                        pickle_img = pickle.dumps(img)
+                        logging.info(
+                            f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
+                        pipeout.write(pickle_img)
+
+                except Exception as e:
+                    logging.error("ERROR EXCEPCIÓN: " + str(e))
+
+            # need to quit?
+            if shm.getExitFlag():
+                break
+
+            # Calculate metrics
+            print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+
+            time.sleep(1 / 25)
+
 
     logging.info("Exiting capture program")
     if shm.getPipeFlag():
