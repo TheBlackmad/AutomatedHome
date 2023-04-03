@@ -15,7 +15,7 @@
 import logging
 import cv2
 import skvideo.io
-import av
+#import av
 import queue
 import time
 from datetime import datetime
@@ -115,9 +115,10 @@ def writeVideo():
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 x, y, w, h = box[0]
                 label = box[1]
+                confidence = box[2]
                 color = 124 #box[2]
                 cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(img, label, (x, y + 30), font, 1 / 2, color, 2)
+                cv2.putText(img, label + ' ' + str(round(confidence*100)) + '%', (x, y - 10), font, 1 / 2, color, 2)
 
         if out is not None:
             out.write(img)
