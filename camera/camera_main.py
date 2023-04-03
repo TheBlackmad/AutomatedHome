@@ -61,20 +61,28 @@ if __name__ == "__main__":
     time.sleep(1)
     # Set the flag to capture video
     shm.setCaptureFlag(True)
+    logging.info(f"Capture Flag: {shm.getCaptureFlag()}")
     # Set the flag to allow view of the video in a screen
     shm.setViewFlag(True)
+    logging.info(f"View Flag: {shm.getViewFlag()}")
     # Set the flag to allow object detection
     shm.setYoloFlag(True)
+    logging.info(f"Yolo Flag: {shm.getYoloFlag()}")
     # Set the flag to allow object detection
     shm.setRecordFlag(True)
+    logging.info(f"Record Flag: {shm.getRecordFlag()}")
     # Set the marker of objects on the image
     shm.setMarkFlag(True)
+    logging.info(f"Mark Flag: {shm.getMarkFlag()}")
     # Set the flag running
     shm.setRunFlag(True)
+    logging.info(f"Run Flag: {shm.getRunFlag()}")
     # Set the flag exit
     shm.setExitFlag(False)
+    logging.info(f"Exit Flag: {shm.getExitFlag()}")
     # Set the pipe flag
     shm.setPipeFlag(False)
+    logging.info(f"Pipe Flag: {shm.getPipeFlag()}")
 
     # Callback signal for SIGINT
     signal.signal(signal.SIGINT, handler_SIGINT)
