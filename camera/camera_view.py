@@ -58,9 +58,10 @@ if __name__ == "__main__":
                         font = cv2.FONT_HERSHEY_SIMPLEX
                         x, y, w, h = box[0]
                         label = box[1]
-                        color = box[2]
+                        confidence = box[2]
+                        color = box[3]
                         cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                        cv2.putText(frame, label, (x-10, y-10), font, 1 / 2, color, 2)
+                        cv2.putText(frame, label + ' ' + str(round(confidence*100)) + '%', (x-10, y-10), font, 1 / 2, color, 2)
 
 
                 cv2.imshow("Video", frame)
