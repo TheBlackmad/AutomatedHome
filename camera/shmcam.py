@@ -76,7 +76,7 @@ class SHMCAM:
             image = b'\x00' * maxImageWidth * maxImageHeight * maxImageDepth # maximum size that can the image be
             imageShape = "({v1:d}, {v2:d}, {v3:d})".format(v1=maxImageWidth, v2=maxImageHeight, v3=maxImageDepth)
             imageFormat = "RGB24" #"This is the test Format"
-            itemBox = "[ [ XXXX, YYYY, WWWW, HHHH ], 'This is the label of the box to display', 'This is the color of the label' ], "
+            itemBox = "[ [ XXXX, YYYY, WWWW, HHHH ], 'This is the label of the box to display', 'X.XX', 'This is the color of the label' ], "
             boxes = "[ " + " " * len(itemBox) * maxBoxes + " ]"
             yoloFlag = False
             recordFlag = False
@@ -343,10 +343,17 @@ class SHMCAM:
         if format == 'yuv420p':
             conversion = cv2.COLOR_YUV420p2RGB
         elif format == 'yuyv422':
-            conversion = cv2.COLOR_YUV2BGR_YUYV
+#            conversion = cv2.COLOR_YUV2BGR_YUYV
+            conversion = cv2.COLOR_YUV2RGB_YUYV
+        elif format == 'rgb24':
+            conversion = None
         else:
             conversion = cv2.COLOR_YUV2BGR_YUYV
-        img = cv2.cvtColor(image, conversion)
+
+        if conversion is not None:
+            img = cv2.cvtColor(image, conversion)
+        else:
+            img = image
         shape = self.getImageShape()
         img = cv2.resize(img, (shape[0], shape[1]))
 
@@ -399,7 +406,7 @@ class SHMCAM:
                 None
         '''
         # Format of the alist should be as from the outcome of the YOLO Algorithm
-        # [ [ [x, y, w, h], label, color], [[x, y, w, h], label, color], ... ]
+        # [ [ [x, y, w, h], label, confidence, color], [[x, y, w, h], label, confidence, color], ... ]
         assert isinstance(boxes, list)
         sem_boxes.acquire()
         try:
