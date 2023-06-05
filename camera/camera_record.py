@@ -24,9 +24,43 @@ from threading import Thread
 import signal
 import shmcam
 import timeMetrics
+from configparser import ConfigParser
 
 from fysom import Fysom
 
+path_recording = None
+
+def config(filename='camera.ini', section='cam_addr'):
+    '''
+        This routine gets reads the config/init file using the
+        library ConfigParser
+
+        Args:
+            filename (str): from where retrieve the parameters
+            section (str): to retrieve parameters from the filename
+
+        Returns:
+            A set with the key:values read for the given section in
+            the file.
+
+        Raises:
+            Exception: Section not found in the file
+            Exception: Error in reading file
+    '''
+
+    # Create a parser for reading init file
+    # and get the section parameters.
+    parser = ConfigParser()
+    parser.read(filename)
+    db = {}
+    if parser.has_section(section):
+        params = parser.items(section)
+        for param in params:
+            db[param[0]] = param[1]
+    else:
+        raise Exception('Section {0} not found in the {1} file'.format(section, filename))
+
+    return db
 
 # this function decides whether writing a video is required or not
 def recordVideo(detected):
@@ -45,6 +79,7 @@ def recordVideo(detected):
         Raises:
             None
     '''
+    global path_recording
     record = False
     value = False
     if detected > 0:
@@ -72,7 +107,7 @@ def recordVideo(detected):
         # if a new video is required (i.e. the last endRecord is in the past)
         # then a new filename is to be created
         if recordVideo.endRecord < ts:
-            recordVideo.filename = "record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
+            recordVideo.filename = path_recording + "record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
         recordVideo.endRecord = ts + 10  # seconds
 
     # if record, then write the frame
@@ -351,6 +386,15 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
+
+    # Collecting data from the recording
+    try:
+        db = config(filename='camera.ini', section='recording')
+    except Exception as e:
+        print(f"Error reading the source: {str(e)}")
+        exit(0)
+    path_recording = db["path"]
+    print(f"Reading video stream from {path_recording}")
 
     # Create area of shared memory
     shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
