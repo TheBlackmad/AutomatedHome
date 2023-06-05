@@ -107,7 +107,7 @@ def recordVideo(detected):
         # if a new video is required (i.e. the last endRecord is in the past)
         # then a new filename is to be created
         if recordVideo.endRecord < ts:
-            recordVideo.filename = path_recording + "record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
+            recordVideo.filename = path_recording + "/record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
         recordVideo.endRecord = ts + 10  # seconds
 
     # if record, then write the frame
@@ -333,7 +333,7 @@ def closefile(e):
     '''
     global out
 
-    print("CLOSE THE VIDEO FILE")
+    print("\nCLOSE THE VIDEO FILE")
     print(f"Time Recording is {time.time()-timeRecordStart}")
     while not framesRecordQueue.empty():
         time.sleep(0.1)
