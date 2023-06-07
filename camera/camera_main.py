@@ -92,7 +92,7 @@ if __name__ == "__main__":
     print(f"Logfile set to {logfile}")
     
     # Preparing the logging and metrics
-    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.basicConfig(filename=logfile, format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
 
