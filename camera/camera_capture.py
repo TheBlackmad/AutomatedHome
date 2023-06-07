@@ -108,10 +108,10 @@ if __name__ == "__main__":
     try:
         logging.info(f"Opening the video source {path_video}")
         if isCameraIndex(path_video):
-            print(f"Opening device index: {path_video}")
+            logging.info(f"Opening device index: {path_video}")
             cap = cv2.VideoCapture(int(path_video))
         else:
-            print(f"Opening device path: {path_video}")
+            logging.info(f"Opening device path: {path_video}")
             input_container = av.open(path_video)
             input_stream = input_container.streams.get(video=0)[0]
     except Exception as e:
