@@ -67,19 +67,27 @@ tAverage = 0.0
 tMax = 0.0
 
 if __name__ == "__main__":
+
+    # Collecting data from the Logging File
+    try:
+        log = config(filename='camera.ini', section='logging')
+    except Exception as e:
+        print(f"Error reading the logfile: {str(e)}")
+        exit(0)
+    logfile=log["capture_logfile"]
+    
     # Preparing the logging and metrics
-    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.basicConfig(filename=logfile, format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
 
-    # Collecting data from the Bank
     try:
-        db = config(filename='camera.ini', section='cam_addr')
+        cam_addr = config(filename='camera.ini', section='cam_addr')
     except Exception as e:
-        print(f"Error reading the source: {str(e)}")
+        logging.error(f"Error reading the source: {str(e)}")
         exit(0)
-    path_video = db["camera_address"]
-    print(f"Reading video stream from {path_video}")
+    path_video = cam_addr["camera_address"]
+    logging.info(f"Reading video stream from {path_video}")
 
     # Create area of shared memory
     shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
