@@ -15,7 +15,6 @@
 import logging
 import cv2
 import skvideo.io
-#import av
 import queue
 import time
 from datetime import datetime
@@ -107,7 +106,7 @@ def recordVideo(detected):
         # if a new video is required (i.e. the last endRecord is in the past)
         # then a new filename is to be created
         if recordVideo.endRecord < ts:
-            recordVideo.filename = path_recording + "/record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
+            recordVideo.filename = path_recording + "record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
         recordVideo.endRecord = ts + 10  # seconds
 
     # if record, then write the frame
@@ -185,7 +184,6 @@ def readFrames():
             sig = signal.sigwait([SIGNALNR])
             handle = signal.getsignal(sig)
             handle(sig, None)
-#            print("(ReadFrames) SIGNAL RECEVIED ON: ", time.time())
 
             if fsm.isstate('recording'):
                 frame = shm.getImage()
@@ -195,7 +193,7 @@ def readFrames():
                 break
 
         except Exception as e:
-            print("ERROR EXCEPTION READ!" + str(e))
+            logging.error("ERROR EXCEPTION READ!" + str(e))
 
 
 def handler(sig_num, curr_stack_frame):
@@ -276,7 +274,7 @@ def createfile(e):
     '''
     global out, fn, writtenFrames, timeRecordStart, shm
 
-#    print("CREATING THE VIDEO FILE")
+    logging.info(f"Creating new video file")
     shape= shm.getImageShape()
     out = cv2.VideoWriter(fn, cv2.VideoWriter_fourcc(*'MPEG'), fps, (shape[0], shape[1]))
 
@@ -333,12 +331,11 @@ def closefile(e):
     '''
     global out
 
-    print("\nCLOSE THE VIDEO FILE")
-    print(f"Time Recording is {time.time()-timeRecordStart}")
+    logging.info(f"New video file recorded. Recording time is {time.time()-timeRecordStart}")
     while not framesRecordQueue.empty():
         time.sleep(0.1)
     out.release()
-    print("Recording finished")
+
 
 
 if __name__ == "__main__":
@@ -380,10 +377,16 @@ if __name__ == "__main__":
         }
     })
 
-    print(f"Current state: {fsm.current}")
+    # Collecting data from the config file
+    try:
+        db = config(filename='camera.ini', section='logging')
+    except Exception as e:
+        print(f"Error reading the source: {str(e)}")
+        exit(0)
+    logfile = db["main_logfile"]
 
     # Preparing the logging
-    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.basicConfig(filename=logfile, format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
 
@@ -394,8 +397,10 @@ if __name__ == "__main__":
         print(f"Error reading the source: {str(e)}")
         exit(0)
     path_recording = db["path"]
-    print(f"Reading video stream from {path_recording}")
+    print(f"Setting directory for storing recordings to {path_recording}")
 
+    logging.info(f"Current state: {fsm.current}")
+    
     # Create area of shared memory
     shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
 
@@ -440,7 +445,7 @@ if __name__ == "__main__":
         #    print(f"Start Time: {start}\t Next record time: {nextRecordTime}\t Sleep Time: {sleeptime}")
 
         except Exception as e:
-            print("EXCEPTION: ", str(e))
+            logging.info("EXCEPTION: ", str(e))
 
         # Calculate metrics
         print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
