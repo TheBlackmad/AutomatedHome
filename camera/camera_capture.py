@@ -87,7 +87,6 @@ if __name__ == "__main__":
         logging.error(f"Error reading the source: {str(e)}")
         exit(0)
     path_video = cam_addr["camera_address"]
-    logging.info(f"Reading video stream from {path_video}")
 
     # Create area of shared memory
     shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
