@@ -89,7 +89,6 @@ if __name__ == "__main__":
         print(f"Error reading the source: {str(e)}")
         exit(0)
     logfile = db["main_logfile"]
-    print(f"Logfile set to {logfile}")
     
     # Preparing the logging and metrics
     logging.basicConfig(filename=logfile, format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
