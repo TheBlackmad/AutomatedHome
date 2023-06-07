@@ -19,14 +19,55 @@ import shmcam
 import numpy as np
 import YOLO_Detector as yolo
 import timeMetrics
+from configparser import ConfigParser
 
 nSamples = 0
 tAverage = 0.0
 tMax = 0.0
 
+def config(filename='camera.ini', section='cam_addr'):
+    '''
+        This routine gets reads the config/init file using the
+        library ConfigParser
+
+        Args:
+            filename (str): from where retrieve the parameters
+            section (str): to retrieve parameters from the filename
+
+        Returns:
+            A set with the key:values read for the given section in
+            the file.
+
+        Raises:
+            Exception: Section not found in the file
+            Exception: Error in reading file
+    '''
+
+    # Create a parser for reading init file
+    # and get the section parameters.
+    parser = ConfigParser()
+    parser.read(filename)
+    db = {}
+    if parser.has_section(section):
+        params = parser.items(section)
+        for param in params:
+            db[param[0]] = param[1]
+    else:
+        raise Exception('Section {0} not found in the {1} file'.format(section, filename))
+
+    return db
+
 if __name__ == "__main__":
+    # Collecting data from the Logging File
+    try:
+        log = config(filename='camera.ini', section='logging')
+    except Exception as e:
+        print(f"Error reading the logfile: {str(e)}")
+        exit(0)
+    logfile=log["detector_logfile"]
+
     # Preparing the logging
-    logging.basicConfig(format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
+    logging.basicConfig(filename=logfile, format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
 
@@ -40,7 +81,7 @@ if __name__ == "__main__":
             # Initialize the Yolo detector
             detector = yolo.YOLO_Detector()
         except Exception as e:
-            logging.error("PUTA EXCEPTION: " + str(e))
+            logging.error("EXCEPTION: " + str(e))
             exit(-1)
 
     # Wait until run flag is activated
