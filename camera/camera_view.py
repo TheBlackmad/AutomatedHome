@@ -18,6 +18,7 @@ import time
 import shmcam
 import numpy as np
 import timeMetrics
+from configparser import ConfigParser
 
 nSamples = 0
 tAverage = 0.0
