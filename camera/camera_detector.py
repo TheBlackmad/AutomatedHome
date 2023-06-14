@@ -83,11 +83,14 @@ if __name__ == "__main__":
         except Exception as e:
             logging.error("EXCEPTION: " + str(e))
             exit(-1)
+        logging.info("YOLO Detector initialized!")
 
     # Wait until run flag is activated
     while not shm.getRunFlag():
         logging.info("Waiting ......")
         pass
+        
+    logging.info("Now detecting objects.")
 
     frame = None
     while True:
@@ -101,6 +104,10 @@ if __name__ == "__main__":
 
                 #boxes = detector.detectObjects(frame)
                 boxes = detector.detect(frame)
+                
+                if detector.getPersons() > 0:
+                    for b in boxes:
+                        logging.info(f"Detected person on box {b}")
 
                 shm.setBoxes(boxes)
 
