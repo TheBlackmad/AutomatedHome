@@ -21,6 +21,8 @@ import YOLO_Detector as yolo
 import timeMetrics
 from configparser import ConfigParser
 
+import sys
+
 nSamples = 0
 tAverage = 0.0
 tMax = 0.0
@@ -58,9 +60,15 @@ def config(filename='camera.ini', section='cam_addr'):
     return db
 
 if __name__ == "__main__":
+
+    # Check args input
+    if len(sys.argv) != 2:
+        print(f"An argument indicating the config file for the camera needs to be given.")
+        exit(0)
+
     # Collecting data from the Logging File
     try:
-        log = config(filename='camera.ini', section='logging')
+        log = config(filename=sys.argv[1], section='logging')
     except Exception as e:
         print(f"Error reading the logfile: {str(e)}")
         exit(0)
@@ -71,13 +79,22 @@ if __name__ == "__main__":
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
 
+    try:
+        cam_addr = config(filename=sys.argv[1], section='cam_addr')
+    except Exception as e:
+        logging.error(f"Error reading the source: {str(e)}")
+        exit(0)
+    path_video = cam_addr["camera_address"]
+    camera_id = cam_addr["camera_id"]
+
     # Create area of shared memory
-    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
+    logging.info(f"Connecting to shared memory with id: {camera_id}")
+    shm = shmcam.SHMCAM(create=False, name=camera_id)
 
     # Initialize the Yolo detector
     if shm.getYoloFlag():
-        logging.info("Initializing the YOLO Detector . . .")
         try:
+            logging.info(f"Initializing YOLO Detector . . . ")
             # Initialize the Yolo detector
             detector = yolo.YOLO_Detector()
         except Exception as e:
@@ -87,7 +104,6 @@ if __name__ == "__main__":
 
     # Wait until run flag is activated
     while not shm.getRunFlag():
-        logging.info("Waiting ......")
         pass
         
     logging.info("Now detecting objects.")

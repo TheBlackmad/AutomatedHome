@@ -134,13 +134,18 @@ class SHMCAM:
         imageCorrect = False
         i=0
 
+#        print(f"(getImage) ENTERING mutual exclusion zone")
         sem_image.acquire()
-        while not imageCorrect:
-            img = np.frombuffer(self._shm[INDEX_IMAGE], dtype=np.uint8)
-            shape = self.getImageShape()
-            imageCorrect = (img.size * img.itemsize == shape[0] * shape[1] * shape[2])
+        try:
+            while not imageCorrect:
+                img = np.frombuffer(self._shm[INDEX_IMAGE], dtype=np.uint8)
+                shape = self.getImageShape()
+                imageCorrect = (img.size * img.itemsize == shape[0] * shape[1] * shape[2])
 
-        img = np.reshape(img, newshape=(shape[1], shape[0], shape[2]))
+            img = np.reshape(img, newshape=(shape[1], shape[0], shape[2]))
+        except Exception as e:
+            print(f"(getImage) Exception while getting image: {e}")
+#        print(f"(getImage) EXITING mutual exclusion zone")
         sem_image.release()
         return img
 
@@ -357,8 +362,13 @@ class SHMCAM:
         shape = self.getImageShape()
         img = cv2.resize(img, (shape[0], shape[1]))
 
+#        print(f"(setImage) ENTERING the mutual exclusion zone")
         sem_image.acquire()
-        self._shm[INDEX_IMAGE] = img.tobytes()
+        try:
+            self._shm[INDEX_IMAGE] = img.tobytes()
+        except Exception as e:
+            print(f"(setImage) Error translating image to bytes")
+#        print(f"(setImage) EXITING the mutual exclusion zone")
         sem_image.release()
 
     def setImageShape(self, shape):

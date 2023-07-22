@@ -24,10 +24,10 @@ import signal
 import shmcam
 import timeMetrics
 from configparser import ConfigParser
+import sys
 
 from fysom import Fysom
 
-path_recording = None
 
 def config(filename='camera.ini', section='cam_addr'):
     '''
@@ -61,329 +61,374 @@ def config(filename='camera.ini', section='cam_addr'):
 
     return db
 
-# this function decides whether writing a video is required or not
-def recordVideo(detected):
-    '''
-        This routine decides whether writing a video is needed or not. It takes a buffer of
-        images and if all the images in the buffer identifies an object, then sets the flag.
-        The flag will be set for at least 10 seconds after no object is detected anymore.
 
-        Args:
-            detected (int): number of objects detected
+#def handler(sig_num, curr_stack_frame):
+#    '''
+#        This routine is handling signals (not use)
+#
+#        Args:
+#            signum (int): signal number
+#            curr_stack_frame (object): caller
+#
+#        Returns:
+#            None
+#
+#        Raises:
+#            None
+#    '''
+#    logging.info("Signal : '{}' Received. Handler Executed @ {}".format(signal.strsignal(sig_num), datetime.now()))
+#    pass
 
-        Returns:
-            record (bool): flag that signals whether to record or not.
-            filename (str): filename to be use in the recording.
 
-        Raises:
-            None
-    '''
-    global path_recording
-    record = False
-    value = False
-    if detected > 0:
-        value = True
+class Recorder():
 
-    # if static variables are not initialized at the start, then do it
-    if not hasattr(recordVideo, "buffer"):
-        recordVideo.buffer = [False] * 1  # window to avoid spurious detections. valid detection is with all values True
-    if not hasattr(recordVideo, "endRecord"):
-        recordVideo.endRecord = 0.0  # when the record finishes
-    if not hasattr(recordVideo, "filename"):
-        recordVideo.filename = None  # it keeps the name of the filename during active recording
+    def __init__(self, shm, path_recording):
 
-    # register time now
-    jetzt = datetime.now()
-    ts = datetime.timestamp(jetzt)
+#        self.SIGNALNR = 63
 
-    # update buffer with the value True/False of detected person
-    recordVideo.buffer.pop()
-    recordVideo.buffer.insert(0, value)
+        # variables for statistics and calculations
+        self.path_recording = path_recording
+        self.writtenFrames = 0
+        self.timeRecordStart = 0.0
+#        self.nextRecordTime = 0
+        self.fps = 8
 
-    # if all buffer is positive finding person
-    check = all(recordVideo.buffer)
-    if check:
-        # if a new video is required (i.e. the last endRecord is in the past)
-        # then a new filename is to be created
-        if recordVideo.endRecord < ts:
-            recordVideo.filename = path_recording + "record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
-        recordVideo.endRecord = ts + 10  # seconds
+        self._rvBuffer = [False] * 1  # window to avoid spurious detections. valid detection is with all values True
+        self._rvEndrecord = 0.0       # when the record finishes
 
-    # if record, then write the frame
-    if ts < recordVideo.endRecord:
-        record = True
-    else:
-        # leave record to False and return name of file to close if needed
-        if recordVideo.filename != None:
-            recordVideo.filename = None
+        # objects 
+        self.record = False
+        self.out = None
+        self.image = None
+        self.fn = None                # it keeps the name of the filename during active recording
 
-    return record, recordVideo.filename
+        # Finite state machine of the recorder
+        self.fsm = Fysom( {
+            'initial': 'init',
+            'final': 'return',
+            'events': [
+                {'name': 'run', 'src': [ 'init', 'running' ], 'dst': 'running'},
+                {'name': 'norun', 'src': [ 'init', 'running' ], 'dst': 'init'},
+                {'name': 'exit', 'src': [ 'init', 'running' ], 'dst': 'return'},
+                {'name': 'record', 'src': [ 'running', 'recordingready' ], 'dst': 'recordingready'},
+                {'name': 'saverec', 'src': [ 'recordingready', 'recording' ], 'dst': 'recording'},
+                {'name': 'saverecend', 'src': 'recording', 'dst': 'recordingready'},
+                {'name': 'norecord', 'src': 'recording', 'dst': 'running'},
+            ],
+            'callbacks': {
+                'onenterrecording': self.createfile,
+                'onreenterrecording': self.queueframe,
+                'onleaverecording': self.closefile
+            }
+        })
 
-def writeVideo():
-    '''
-        This routine is thought to run as a thread as is in charge of waiting
-        for a signal to run. the frequency at which it runs is commanded from
-        outside this routine.
-        If there is any frame in the RECORD QUEUE, it writes it to the file.
-        The written image will include as well the Boxes identifying boxes if
-        the MARK FLAG is set.
+        # Reference to the shared memory area
+        self.shm = shm
 
-        Args:
-            None
+        # Creating queue for the processing of frames
+        self.framesRecordQueue = queue.Queue(1000)
+        self.framesReadQueue = queue.Queue(1000)
 
-        Returns:
-            None
+        # Create thread for reading frames
+#        logging.info("Starting thread reading frames")
+#        threadRead = Thread(target=readFrames, args=())
+#        threadRead.start()
 
-        Raises:
-            None
-    '''
-    while True:
-        # get the frame and write
-        img = framesRecordQueue.get()
+        # Create thread for recording
+        logging.info("Starting thread writing video")
+        threadRecord = Thread(target=self.writeVideo, args=())
+        threadRecord.start()
 
-        # if marker active then write boxes of obkject detection
-        if shm.getMarkFlag():
-            boxes = shm.getBoxes()
-            for box in boxes:
-                # font = cv2.FONT_HERSHEY_PLAIN
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                x, y, w, h = box[0]
-                label = box[1]
-                confidence = box[2]
-                color = 124 #box[2]
-                cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(img, label + ' ' + str(round(confidence*100)) + '%', (x, y - 10), font, 1 / 2, color, 2)
+        # signal 
+#        signal.signal(self.SIGNALNR, handler)
 
-        if out is not None:
-            out.write(img)
 
-        if fsm.isstate('exit'):
-            break
+    def loop_run(self):
 
-def readFrames():
-    '''
-        This routine is thought to run as a thread as is in charge of waiting
-        for a signal to run. the frequency at which it runs is commanded from
-        outside this routine.
-        If the state machine is recording, it queues from shared memory the
-        image into the READ QUEUE.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            None
-    '''
-    t0 = time.time()
-    while True:
+        nextRecordTime = time.time() + (1/self.fps)
 
         try:
-            sig = signal.sigwait([SIGNALNR])
-            handle = signal.getsignal(sig)
-            handle(sig, None)
+            # execute every event
+            events = self.createEvents()
+            for e in events:
+                if self.fsm.can(e[1]):
+                    exe ='self.fsm.' + e[1] + '()'
+                    eval(exe)
 
-            if fsm.isstate('recording'):
-                frame = shm.getImage()
-                framesReadQueue.put(frame)
+            # process frames at the loop frequency
+#            for thread in threading.enumerate():
+#                signal.pthread_kill(thread.ident, SIGNALNR)
+            self.readFrames()
 
-            if fsm.isstate('exit'):
+            sleeptime = nextRecordTime - time.time()
+            if sleeptime < 0.0:
+                sleeptime = 0.0
+            time.sleep(sleeptime)
+#            print(f"Start Time: {start}\t Next record time: {nextRecordTime}\t Sleep Time: {sleeptime}")
+
+        except Exception as e:
+            logging.error("EXCEPTION: ", str(e))
+
+
+    # this function decides whether writing a video is required or not
+    def recordVideo(self, detected):
+        '''
+            This routine decides whether writing a video is needed or not. It takes a buffer of
+            images and if all the images in the buffer identifies an object, then sets the flag.
+            The flag will be set for at least 10 seconds after no object is detected anymore.
+
+            Args:
+                detected (int): number of objects detected
+
+            Returns:
+                record (bool): flag that signals whether to record or not.
+                filename (str): filename to be use in the recording.
+
+            Raises:
+                None
+        '''
+
+        value = False
+        if detected > 0:
+            value = True
+
+        # register time now
+        jetzt = datetime.now()
+        ts = datetime.timestamp(jetzt)
+
+        # update buffer with the value True/False of detected person
+        self._rvBuffer.pop()
+        self._rvBuffer.insert(0, value)
+
+        # if all buffer is positive finding person
+        check = all(self._rvBuffer)
+        if check:
+            # if a new video is required (i.e. the last endRecord is in the past)
+            # then a new filename is to be created
+            if self._rvEndrecord < ts:
+                self.fn = self.path_recording + "record-" + str(jetzt.strftime("%Y-%m-%d_%H_%M_%S")) + ".avi"
+            self._rvEndrecord = ts + 10  # seconds
+
+        # if record, then write the frame
+        if ts < self._rvEndrecord:
+            self.record = True
+        else:
+            # leave record to False and return name of file to close if needed
+            self.record = False
+            if self.fn != None:
+                self.fn = None
+
+        return self.record, self.fn
+
+
+    def writeVideo(self):
+        '''
+            This routine is thought to run as a thread as is in charge of waiting
+            for a signal to run. the frequency at which it runs is commanded from
+            outside this routine.
+            If there is any frame in the RECORD QUEUE, it writes it to the file.
+            The written image will include as well the Boxes identifying boxes if
+            the MARK FLAG is set.
+
+            Args:
+                None
+
+            Returns:
+                None
+
+            Raises:
+                None
+        '''
+
+        while True:
+            # get the frame and write
+            img = self.framesRecordQueue.get()
+
+            # if marker active then write boxes of object detection
+            if self.shm.getMarkFlag():
+                boxes = self.shm.getBoxes()
+                for box in boxes:
+                    # font = cv2.FONT_HERSHEY_PLAIN
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    x, y, w, h = box[0]
+                    label = box[1]
+                    confidence = box[2]
+                    color = 124 #box[2]
+                    cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+                    cv2.putText(img, label + ' ' + str(round(confidence*100)) + '%', (x, y - 10), font, 1 / 2, color, 2)
+
+            if self.out is not None:
+                self.out.write(img)
+
+            if self.fsm.isstate('exit'):
                 break
+
+
+    def readFrames(self):
+        '''
+            This routine is thought to run as a thread as is in charge of waiting
+            for a signal to run. the frequency at which it runs is commanded from
+            outside this routine.
+            If the state machine is recording, it queues from shared memory the
+            image into the READ QUEUE.
+
+            Args:
+                None
+
+            Returns:
+                None
+
+            Raises:
+                None
+        '''
+        t0 = time.time()
+        try:
+#            sig = signal.sigwait([self.SIGNALNR])
+#            handle = signal.getsignal(sig)
+#            handle(sig, None)
+
+            if self.fsm.isstate('recording'):
+                frame = self.shm.getImage()
+                self.framesReadQueue.put(frame)
 
         except Exception as e:
             logging.error("ERROR EXCEPTION READ!" + str(e))
 
 
-def handler(sig_num, curr_stack_frame):
-    '''
-        This routine is handling signals (not use)
+    def createEvents(self):
+        '''
+            This routine creates the event of the state machine and changes the state as required.
 
-        Args:
-            signum (int): signal number
-            curr_stack_frame (object): caller
+            Args:
+                None
 
-        Returns:
-            None
+            Returns:
+                list of events for the state machine
 
-        Raises:
-            None
-    '''
-#    logging.info("Signal : '{}' Received. Handler Executed @ {}".format(signal.strsignal(sig_num), datetime.now()))
-    pass
+            Raises:
+                None
+        '''
 
-def createEvents():
-    '''
-        This routine creates the event of the state machine and changes the state as required.
+        eventList = []
 
-        Args:
-            None
+        # Events has a priority to be executed whenever it is possible. Lower number, higher priority.
+        # It is in the form of a tuple (PRIO, EVENT)
+        if self.shm.getExitFlag():   # need to exit
+            eventList.append((0, 'exit'))
+        else:   # if exit is False, do nothing
+            pass
 
-        Returns:
-            list of events for the state machine
+        if self.shm.getRunFlag():
+            eventList.append((1, 'run'))
+        else:
+            eventList.append((1, 'norun'))
 
-        Raises:
-            None
-    '''
-    global record, fn
+        if self.shm.getRecordFlag():
+            eventList.append((2, 'record'))
+        else:
+            eventList.append((2, 'norecord'))
 
-    eventList = []
+        # See the number of items detected
+        objects = self.shm.getBoxes()
+        self.record, self.fn = self.recordVideo(len(objects))
+        if self.record:
+            eventList.append((3, 'saverec'))
+        else:
+            eventList.append((3, 'saverecend'))
 
-    # Events has a priority to be executed whenever it is possible. Lower number, higher priority.
-    # It is in the form of a tuple (PRIO, EVENT)
-    if shm.getExitFlag():   # need to exit
-        eventList.append((0, 'exit'))
-    else:   # if exit is False, do nothing
-        pass
-
-    if shm.getRunFlag():
-        eventList.append((1, 'run'))
-    else:
-        eventList.append((1, 'norun'))
-
-    if shm.getRecordFlag():
-        eventList.append((2, 'record'))
-    else:
-        eventList.append((2, 'norecord'))
-
-    # See the number of items detected
-    objects = shm.getBoxes()
-    record, fn = recordVideo(len(objects))
-    if record:
-        eventList.append((3, 'saverec'))
-    else:
-        eventList.append((3, 'saverecend'))
-
-    return eventList
+        return eventList
 
 
-def createfile(e):
-    '''
-        This routine creates a new record file. When the state is create a new movie
-        this routine is doing exactly that.
+    def createfile(self, e):
+        '''
+            This routine creates a new record file. When the state is create a new movie
+            this routine is doing exactly that.
 
-        Args:
-            e (event): event generated from the state machine
+            Args:
+                e (event): event generated from the state machine
 
-        Returns:
-            None
+            Returns:
+                None
 
-        Raises:
-            None
-    '''
-    global out, fn, writtenFrames, timeRecordStart, shm
+            Raises:
+                None
+        '''
 
-    logging.info(f"Creating new video file")
-    shape= shm.getImageShape()
-    out = cv2.VideoWriter(fn, cv2.VideoWriter_fourcc(*'MPEG'), fps, (shape[0], shape[1]))
+        logging.info(f"Creating new video file")
+        shape = self.shm.getImageShape()
+        self.out = cv2.VideoWriter(self.fn, cv2.VideoWriter_fourcc(*'MPEG'), self.fps, (shape[0], shape[1]))
 
-    writtenFrames = 0
-    timeRecordStart = time.time()
+        self.writtenFrames = 0
+        self.timeRecordStart = time.time()
 
-def queueframe(e):
-    '''
-        This routine queues a new frame into the Record Queue. The frame is
-        retrieved from the Read Queue.
 
-        Args:
-            e (event): event
+    def queueframe(self, e):
+        '''
+            This routine queues a new frame into the Record Queue. The frame is
+            retrieved from the Read Queue.
 
-        Returns:
-            list of boxes where the persons where identified
+            Args:
+                e (event): event
 
-        Raises:
-            None
-    '''
-    global framesRecordQueue
-    global framesReadQueue
-    global record, fn, writtenFrames, image
+            Returns:
+                list of boxes where the persons where identified
 
-    # get frames from the read queue and put it into the record queue.
-    # if no frame is available from the read queue, put the last one.
-    try:
-        image = framesReadQueue.get(block=False)
-    except queue.Empty as e:
-#        print("EMPTY QUEUE!")
-#        image = image
-        pass
+            Raises:
+                None
+        '''
 
-    try:
-        framesRecordQueue.put(image, block=False)
-    except queue.Full as e:
-        pass
+        # get frames from the read queue and put it into the record queue.
+        # if no frame is available from the read queue, put the last one.
+        try:
+            self.image = self.framesReadQueue.get(block=False)
+        except queue.Empty as e:
+#            print("EMPTY QUEUE!")
+#            self.image = self.image
+            pass
 
-    writtenFrames += 1
+        try:
+            self.framesRecordQueue.put(self.image, block=False)
+        except queue.Full as e:
+            pass
 
-def closefile(e):
-    '''
-        This routine close the recording file as it is no longer needed to
-        file a movie.
+        self.writtenFrames += 1
 
-        Args:
-            e (event): event
 
-        Returns:
-            None
+    def closefile(self, e):
+        '''
+            This routine close the recording file as it is no longer needed to
+            file a movie.
 
-        Raises:
-            None
-    '''
-    global out
+            Args:
+                e (event): event
 
-    logging.info(f"New video file recorded. Recording time is {time.time()-timeRecordStart}")
-    while not framesRecordQueue.empty():
-        time.sleep(0.1)
-    out.release()
+            Returns:
+                None
+
+            Raises:
+                None
+        '''
+
+        # Recording is finished. However, when the record queue is empty, the write process needs to 
+        # write the last frame to the file. We need to ensure that this process is giving time to write
+        # the last frame to the file. Thus, 1 sec to complete.
+        logging.info(f"New video file recorded. Recording time is {time.time()-self.timeRecordStart}")
+        while not self.framesRecordQueue.empty():
+            time.sleep(0.1)
+        time.sleep(1)
+        self.out.release()
 
 
 
-if __name__ == "__main__":
-    SIGNALNR = 63
-
-    nSamples = 0
-    tAverage = 0.0
-    tMax = 0.0
-    writtenFrames = 0
-    timeRecordStart = 0.0
-    fps = 8
-    input_stream = None
-
-    record = False
-    recording = False
-    out = None
-    framesRecordQueue = None
-    framesReadQueue = None
-    image = None
-    shm = None      # shared memory area
-    fsm = None      # Finite state machine
-
-    fsm = Fysom( {
-        'initial': 'init',
-        'final': 'return',
-        'events': [
-            {'name': 'run', 'src': [ 'init', 'running' ], 'dst': 'running'},
-            {'name': 'norun', 'src': [ 'init', 'running' ], 'dst': 'init'},
-            {'name': 'exit', 'src': [ 'init', 'running' ], 'dst': 'return'},
-            {'name': 'record', 'src': [ 'running', 'recordingready' ], 'dst': 'recordingready'},
-            {'name': 'saverec', 'src': [ 'recordingready', 'recording' ], 'dst': 'recording'},
-            {'name': 'saverecend', 'src': 'recording', 'dst': 'recordingready'},
-            {'name': 'norecord', 'src': 'recording', 'dst': 'running'},
-        ],
-        'callbacks': {
-            'onenterrecording': createfile,
-            'onreenterrecording': queueframe,
-            'onleaverecording': closefile
-        }
-    })
+if __name__ == "__main__":    
 
     # Collecting data from the config file
     try:
-        db = config(filename='camera.ini', section='logging')
+        db = config(filename=sys.argv[1], section='logging')
     except Exception as e:
         print(f"Error reading the source: {str(e)}")
         exit(0)
-    logfile = db["main_logfile"]
+    logfile = db["record_logfile"]
 
     # Preparing the logging
     logging.basicConfig(filename=logfile, format="%(asctime)s - %(funcName)s:%(lineno)d - %(message)s", level=logging.INFO)
@@ -392,60 +437,34 @@ if __name__ == "__main__":
 
     # Collecting data from the recording
     try:
-        db = config(filename='camera.ini', section='recording')
+        dbr = config(filename=sys.argv[1], section='recording')
     except Exception as e:
         print(f"Error reading the source: {str(e)}")
         exit(0)
-    path_recording = db["path"]
-    print(f"Setting directory for storing recordings to {path_recording}")
+    print(f"Setting directory for storing recordings to {dbr['path']}")
 
-    logging.info(f"Current state: {fsm.current}")
-    
+    # Collecting data from the camera memory
+    try:
+        dbc = config(filename=sys.argv[1], section='cam_addr')
+    except Exception as e:
+        print(f"Error reading the source: {str(e)}")
+        exit(0)
+
     # Create area of shared memory
-    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
+    shm = shmcam.SHMCAM(create=False, name=dbc['camera_id'])
 
-    # Creating queue for the processing of frames
-    framesRecordQueue = queue.Queue(1000)
-    framesReadQueue = queue.Queue(1000)
-
-    signal.signal(SIGNALNR, handler)
-
-    # Create thread for reading frames
-    logging.info("Starting thread reading frames")
-    threadRecord = Thread(target=readFrames, args=())
-    threadRecord.start()
-
-    # Create thread for recording
-    logging.info("Starting thread writing video")
-    threadRecord = Thread(target=writeVideo, args=())
-    threadRecord.start()
-
-    time0 = time.time()
-    nextRecordTime = 0
+    # Create the object recorder
+    recorder = Recorder(shm, dbr['path'])
+    logging.info(f"Current state: {recorder.fsm.current}")
+    previous_state = recorder.fsm.current
 
     while True:
         metrics.newCycle()
-        nextRecordTime = time.time() + (1/fps)
 
-        try:
-            # execute every event
-            events = createEvents()
-            for e in events:
-                if fsm.can(e[1]):
-                    exe ='fsm.' + e[1] + '()'
-                    eval(exe)
-
-            for thread in threading.enumerate():
-                signal.pthread_kill(thread.ident, SIGNALNR)
-
-            sleeptime = nextRecordTime - time.time()
-            if sleeptime < 0.0:
-                sleeptime = 0.0
-            time.sleep(sleeptime)
-        #    print(f"Start Time: {start}\t Next record time: {nextRecordTime}\t Sleep Time: {sleeptime}")
-
-        except Exception as e:
-            logging.info("EXCEPTION: ", str(e))
+        recorder.loop_run()
+        if previous_state != recorder.fsm.current:
+            logging.info(f"Recorder now in state: {recorder.fsm.current}.")
+            previous_state = recorder.fsm.current
 
         # Calculate metrics
         print(f"\r{metrics.endCycle().toString()}", end="", flush=True)

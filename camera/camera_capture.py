@@ -21,8 +21,12 @@ import shmcam
 import timeMetrics
 from configparser import ConfigParser
 from numpy import asarray
+import gi
+import threading
 
-import YOLO_Detector as yolo
+from threading import Thread
+
+fps=25
 
 def config(filename='camera.ini', section='cam_addr'):
     '''
@@ -60,6 +64,7 @@ def isCameraIndex(path):
     assert isinstance(path, str)
     return path.isdigit()
 
+
 pipe_name = 'video_pipe'
 pipeout = None
 nSamples = 0
@@ -68,9 +73,14 @@ tMax = 0.0
 
 if __name__ == "__main__":
 
+    # Check args input
+    if len(sys.argv) != 2:
+        print(f"An argument indicating the config file for the camera needs to be given.")
+        exit(0)
+
     # Collecting data from the Logging File
     try:
-        log = config(filename='camera.ini', section='logging')
+        log = config(filename=sys.argv[1], section='logging')
     except Exception as e:
         print(f"Error reading the logfile: {str(e)}")
         exit(0)
@@ -82,14 +92,17 @@ if __name__ == "__main__":
     metrics = timeMetrics.timeMetrics()
 
     try:
-        cam_addr = config(filename='camera.ini', section='cam_addr')
+        cam_addr = config(filename=sys.argv[1], section='cam_addr')
     except Exception as e:
         logging.error(f"Error reading the source: {str(e)}")
         exit(0)
     path_video = cam_addr["camera_address"]
+    camera_id = cam_addr["camera_id"]
+    rtsp_server = eval(cam_addr["rtsp_server"])
 
     # Create area of shared memory
-    shm = shmcam.SHMCAM(create=False, name="CAMERA_SHMEM")
+    logging.info(f"Connecting to shared memory with id: {camera_id}")
+    shm = shmcam.SHMCAM(create=False, name=camera_id)
 
     # Create the pipe communication
     if shm.getPipeFlag():
@@ -119,8 +132,16 @@ if __name__ == "__main__":
 
     # Wait until run flag is activated
     while not shm.getRunFlag():
-        logging.info("Waiting ......")
+#        logging.info("Waiting ......")
         pass
+
+    # prepare RTSP Server creating thread for that if need to stream 
+    # in some cases the camera is provided RTSP Streaming automatically
+#    threadRTSP = None
+#    if rtsp_server:
+#        logging.info("Starting thread for the RTSP Server")
+#        threadRTSP = Thread(target=rtsp_on_thread, args=(camera_id,))
+#        threadRTSP.start()
 
     # retrieve each frame
     logging.info("Now capturing frames . . .")
@@ -129,44 +150,48 @@ if __name__ == "__main__":
     # However av, does not support indexes for the cameras, at least in some computers.
     if not isCameraIndex(path_video):
 
-        for frame in input_container.decode(input_stream):
+        while(True):
 
-            metrics.newCycle()
+            try:
 
-            if shm.getCaptureFlag() and shm.getRunFlag():
-                try:
+                for frame in input_container.decode(input_stream):
 
-                    img = frame.to_ndarray(format=frame.format.name, width=frame.format.width, height=frame.format.height)
+                    metrics.newCycle()
 
-                    # make available to the external world
-                    shm.setImage(img, frame.format.name)
+                    if shm.getCaptureFlag() and shm.getRunFlag():
 
-                    # send to the pipe
-                    if shm.getPipeFlag():
-                        if pipeout is None:
-                            try:
-                                logging.info("Open the communication pipe")
-                                if os.path.exists(pipe_name):
-                                    os.remove(pipe_name)
-                                os.mkfifo(pipe_name)
-                                pipeout = open(pipe_name, "wb")
-                            except Exception as e:
-                                logging.error("Error Exception: " + str(e))
-                        pickle_img = pickle.dumps(img)
-                        logging.info(f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
-                        pipeout.write(pickle_img)
+                        img = frame.to_ndarray(format=frame.format.name, width=frame.format.width, height=frame.format.height)
 
-                except Exception as e:
-                    logging.error("ERROR EXCEPCIÓN: " + str(e))
+                        # make available to the external world
+                        shm.setImage(img, frame.format.name)
 
-            # need to quit?
-            if shm.getExitFlag():
-                break
+                        # send to the pipe
+                        if shm.getPipeFlag():
+                            if pipeout is None:
+                                try:
+                                    logging.info("Open the communication pipe")
+                                    if os.path.exists(pipe_name):
+                                        os.remove(pipe_name)
+                                    os.mkfifo(pipe_name)
+                                    pipeout = open(pipe_name, "wb")
+                                except Exception as e:
+                                    logging.error("Error Exception: " + str(e))
+                            pickle_img = pickle.dumps(img)
+                            logging.info(f"Sending image ({sys.getsizeof(img)} / {sys.getsizeof(pickle_img)}) to the PIPE {pipeout} \Data: {type(img)}")
+                            pipeout.write(pickle_img)
 
-            # Calculate metrics
-            print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+                    # need to quit?
+                    if shm.getExitFlag():
+                        logging.ingo(f"Request received to exit module")
+                        break
 
-            time.sleep(1/25)
+                    # Calculate metrics
+                    print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
+
+                    time.sleep(1/fps)
+
+            except Exception as e:
+                logging.error("ERROR EXCEPCIÓN: " + str(e))
 
     # this is a camera index, only address supported by OpenCV
     else:
@@ -205,12 +230,13 @@ if __name__ == "__main__":
 
             # need to quit?
             if shm.getExitFlag():
+                logging.info(f"Request receive to exit module")
                 break
 
             # Calculate metrics
             print(f"\r{metrics.endCycle().toString()}", end="", flush=True)
 
-            time.sleep(1 / 25)
+            time.sleep(1 / fps)
 
 
     logging.info("Exiting capture program")

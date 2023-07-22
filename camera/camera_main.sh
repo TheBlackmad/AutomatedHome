@@ -8,8 +8,8 @@ export CAMERA_PATH=/home/odroid/projects/AutomatedHome/camera
 
 # set up the environment
 source $CAMERA_ENV/bin/activate
-echo "*****" >> $CAMERA_PATH/cm.log
-echo "Environment is:" $VIRTUAL_ENV >> $CAMERA_PATH/cm.log
+#echo "*****" >> $CAMERA_PATH/cm.log
+#echo "Environment is:" $VIRTUAL_ENV >> $CAMERA_PATH/cm.log
 sleep 1
 
 # Start the program

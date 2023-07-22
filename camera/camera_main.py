@@ -18,13 +18,16 @@ import signal
 import shmcam
 import timeMetrics
 from configparser import ConfigParser
+import subprocess
+import sys
+import os
 
 nSamples = 0
 tAverage = 0.0
 tMax = 0.0
 shm = None
 
-def config(filename='camera.ini', section='cam_addr'):
+def config(filename='config.ini', section='global'):
     '''
         This routine gets reads the config/init file using the
         library ConfigParser
@@ -84,7 +87,7 @@ if __name__ == "__main__":
     
     # Collecting data from the config file
     try:
-        db = config(filename='camera.ini', section='logging')
+        db = config(filename='config.ini', section='logging')
     except Exception as e:
         print(f"Error reading the source: {str(e)}")
         exit(0)
@@ -95,36 +98,84 @@ if __name__ == "__main__":
     logging.info("Program started")
     metrics = timeMetrics.timeMetrics()
 
-    # Create area of shared memory
-    shm = shmcam.SHMCAM(create=True, name="CAMERA_SHMEM",maxImageWidth=1280, maxImageHeight=720)
+    # Collecting data for the cameras
+    try:
+        db = config(filename='config.ini', section='global')
+    except Exception as e:
+        print(f"Error reading the source: {str(e)}")
+        exit(0)
 
-    # Wait for others to join if needed
-    # then initiate the running
-    time.sleep(1)
-    # Set the flag to capture video
-    shm.setCaptureFlag(True)
-    logging.info(f"Capture Flag: {shm.getCaptureFlag()}")
-    # Set the flag to allow view of the video in a screen
-    shm.setViewFlag(True)
-    logging.info(f"View Flag: {shm.getViewFlag()}")
-    # Set the flag to allow object detection
-    shm.setYoloFlag(True)
-    logging.info(f"Yolo Flag: {shm.getYoloFlag()}")
-    # Set the flag to allow object detection
-    shm.setRecordFlag(True)
-    logging.info(f"Record Flag: {shm.getRecordFlag()}")
-    # Set the marker of objects on the image
-    shm.setMarkFlag(True)
-    logging.info(f"Mark Flag: {shm.getMarkFlag()}")
-    # Set the flag running
-    shm.setRunFlag(True)
-    logging.info(f"Run Flag: {shm.getRunFlag()}")
-    # Set the flag exit
-    shm.setExitFlag(False)
-    logging.info(f"Exit Flag: {shm.getExitFlag()}")
-    # Set the pipe flag
-    shm.setPipeFlag(False)
-    logging.info(f"Pipe Flag: {shm.getPipeFlag()}")
+    # trigger all processes to manage that cameras
+    cameras = [e.strip() for e in db["cameras"].split(',')]
+    procs = []  # list of processes for each camera
+    for camera in cameras:
+        # Collecting data from the camera config file
+        try:
+            dbc = config(filename=camera, section='cam_addr')
+        except Exception as e:
+            print(f"Error reading the source: {str(e)}")
+            exit(0)
+
+#        print (f"Read dbc: {dbc}")
+        # Create area of shared memory for that camera
+        logging.info(f"Creating shared memory area for {dbc['camera_id']}")
+        shm = shmcam.SHMCAM(create=True, name=dbc["camera_id"],maxImageWidth=1280, maxImageHeight=720)
+        # Wait for others to join if needed
+        # then initiate the running
+        time.sleep(1)
+        # Set the flag to capture video
+        shm.setCaptureFlag(eval(db["captureflag"]))
+        logging.info(f"    ----> Capture Flag: {shm.getCaptureFlag()}")
+        # Set the flag to allow view of the video in a screen
+        shm.setViewFlag(eval(db["viewflag"]))
+        logging.info(f"    ----> View Flag: {shm.getViewFlag()}")
+        # Set the flag to allow object detection
+        shm.setYoloFlag(eval(db["yoloflag"]))
+        logging.info(f"    ----> Yolo Flag: {shm.getYoloFlag()}")
+        # Set the flag to allow object detection
+        shm.setRecordFlag(eval(db["recordflag"]))
+        logging.info(f"    ----> Record Flag: {shm.getRecordFlag()}")
+        # Set the marker of objects on the image
+        shm.setMarkFlag(eval(db["markflag"]))
+        logging.info(f"    ----> Mark Flag: {shm.getMarkFlag()}")
+        # Set the flag running
+        shm.setRunFlag(eval(db["runflag"]))
+        logging.info(f"    ----> Run Flag: {shm.getRunFlag()}")
+        # Set the flag exit
+        shm.setExitFlag(eval(db["exitflag"]))
+        logging.info(f"    ----> Exit Flag: {shm.getExitFlag()}")
+        # Set the pipe flag
+        shm.setPipeFlag(eval(db["pipeflag"]))
+        logging.info(f"    ----> Pipe Flag: {shm.getPipeFlag()}")
+
+        # Execute processes in charge of this camera
+#        logging.info(f"Created following processes for shared memory {dbc['camera_id']}:")
+#        rknn_env = os.environ.copy()
+#        time.sleep(10)
+#        proc_cap = subprocess.Popen([sys.executable, 'camera_capture.py', camera], env=rknn_env)
+#        logging.info(f"    ----> Created CAPTURE Process with PID: {proc_cap.pid}")
+#        if eval(dbc["rtsp_server"]):
+#            proc_rts = subprocess.Popen([sys.executable, 'camera_rtsp.py', camera], env=rknn_env)
+#            logging.info(f"    ----> Created RTSP Server Process with PID: {proc_rts.pid}")
+#        else:
+#            proc_rts = None
+#        time.sleep(20)
+#        proc_det = subprocess.Popen([sys.executable, 'camera_detector.py', camera], env=rknn_env)
+#        logging.info(f"    ----> Created DETECTOR Process with PID: {proc_det.pid}")
+#        time.sleep(20)
+#        proc_rec = subprocess.Popen([sys.executable, 'camera_record.py', camera], env=rknn_env)
+#        logging.info(f"    ----> Created RECORD Process with PID {proc_rec.pid}")
+
+        # keep record of all processes raised and area of shared memory
+#        procs.append({
+#            "id": dbc["camera_id"],
+#            "sharedmemory": shm,
+#            "capture": proc_cap, 
+#            "rtsp": proc_rts,
+#            "detect": proc_det, 
+#            "record": proc_rec
+#        })
+
 
     # Callback signal for SIGINT
     signal.signal(signal.SIGINT, handler_SIGINT)
